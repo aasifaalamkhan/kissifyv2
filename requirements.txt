@@ -1,0 +1,33 @@
+# requirements.txt
+# RunPod SDK (stable pinned)
+runpod==1.7.13
+
+# PyTorch (updated to 2.2.2 to resolve conflict with xformers)
+torch==2.2.2
+torchvision==0.17.2 # Compatible with torch 2.2.2
+torchaudio==2.2.2   # Compatible with torch 2.2.2
+
+# Core Stable Diffusion / AnimateDiff dependencies
+diffusers==0.27.2
+transformers==4.38.2
+accelerate==0.27.2
+safetensors==0.4.2
+
+# Utility & image processing
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+requests==2.31.0
+
+# ControlNet utilities
+controlnet-aux==0.0.6
+
+# For the health check server
+flask==3.0.3
+
+# Memory and performance optimization (requires torch 2.2.2)
+xformers==0.0.25.post1
+
+# IP-Adapter (Tencent official) — install from source
+# Pinned to a specific commit for stability. IMPORTANT: Verify this commit is stable.
+# You can find recent stable commits on https://github.com/tencent-ailab/IP-Adapter/commits/main/
+git+https://github.com/tencent-ailab/IP-Adapter.git@78ff305d214a1321034c4493390c9162986e68f8
