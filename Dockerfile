@@ -1,4 +1,3 @@
-# Dockerfile
 # Use the official PyTorch image with CUDA 11.8 and Python 3.10
 FROM pytorch/pytorch:2.2.0-cuda11.8-cudnn8-devel
 
@@ -32,18 +31,17 @@ RUN echo "--- Updating apt packages and installing system dependencies ---" && \
 COPY requirements.txt .
 RUN echo "--- Installing Python packages from requirements.txt ---" && \
     pip install --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir -v -r requirements.txt \
+    pip install --no-cache-dir -r requirements.txt \
     --extra-index-url https://download.pytorch.org/whl/cu118 && \
     echo "--- Python packages installed ---"
 
 # --- OPTIONAL: Pre-fetch Hugging Face models during build ---
-# Uncomment this section if you want to pre-download models during image build.
-# Requires configuring a Hugging Face token in your Docker build secrets (--secret id=huggingface_token).
+# (Keep this section commented out unless you actively need it and configure the token)
 # RUN --mount=type=secret,id=huggingface_token,target=/run/secrets/huggingface_token \
-#       export HF_HOME="/app/hf_cache" && \
-#       mkdir -p ${HF_HOME} && \
-#       echo "--- Pre-fetching Hugging Face models ---" && \
-#       python -c " \
+#     export HF_HOME="/app/hf_cache" && \
+#     mkdir -p ${HF_HOME} && \
+#     echo "--- Pre-fetching Hugging Face models ---" && \
+#     python -c " \
 # import os; \
 # from huggingface_hub import hf_hub_download, snapshot_download; \
 # token = os.environ.get('HUGGING_FACE_HUB_TOKEN') or open('/run/secrets/huggingface_token').read().strip(); \
@@ -59,7 +57,7 @@ RUN echo "--- Installing Python packages from requirements.txt ---" && \
 # snapshot_download(repo_id='h94/IP-Adapter', allow_patterns=['models/image_encoder/*', 'ip-adapter_sd15.bin'], local_dir=f'{os.environ['HF_HOME']}/h94/IP-Adapter', resume_download=True, token=token); \
 # print('Model pre-fetching complete.'); \
 # " && \
-#       echo "--- Pre-fetched models successfully ---"
+#     echo "--- Pre-fetched models successfully ---"
 
 # Copy your main application script into the container.
 COPY main.py .
