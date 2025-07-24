@@ -11,7 +11,7 @@ diffusers @ git+https://github.com/huggingface/diffusers.git
 transformers==4.40.2
 accelerate==0.27.2
 safetensors==0.4.2
-huggingface_hub>=0.22.2
+huggingface_hub==0.33.4
 
 # Utility & image processing
 Pillow==10.2.0
@@ -27,7 +27,9 @@ controlnet-aux==0.0.6
 flask==3.0.3
 
 # Memory/perf
-xformers==0.0.24.post1 # FIXED: Compatible with torch==2.2.0
+xformers==0.0.25.post1 # FIXED: Using the recommended version for torch==2.2.0
 
 # IP-Adapter (from source, as it requires specific build setup)
 git+https://github.com/tencent-ailab/IP-Adapter.git
+
+
