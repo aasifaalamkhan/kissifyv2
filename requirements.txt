@@ -1,35 +1,35 @@
-RunPod SDK (stable pinned)
+# RunPod SDK stable pinned
 runpod==1.7.13
 
-PyTorch (updated to 2.2.2 to resolve conflict with xformers)
+# PyTorch (compatible with xformers)
 torch==2.2.2
 torchvision==0.17.2 # Compatible with torch 2.2.2
 torchaudio==2.2.2    # Compatible with torch 2.2.2
 
-Core Stable Diffusion / AnimateDiff dependencies
+# Core Stable Diffusion / AnimateDiff dependencies
 diffusers==0.27.2
 transformers==4.38.2
 accelerate==0.27.2
 safetensors==0.4.2
 
-Utility & image processing
+# Utility & image processing
 Pillow==10.2.0
 opencv-python-headless==4.9.0.80
 requests==2.31.0
 numpy==1.26.4 # Pin NumPy to avoid 2.x compatibility issues
 
-ControlNet utilities
+# ControlNet utilities
 controlnet-aux==0.0.6
 
-For the health check server
+# For the health check server
 flask==3.0.3
 
-Memory and performance optimization (requires torch 2.2.2)
+# Memory and performance optimization (requires torch 2.2.2)
 xformers==0.0.25.post1
 
-IP-Adapter (Tencent official) — install from source
-Make sure your Dockerfile installs git, build-essential, python3-dev
+# IP-Adapter (Tencent official) — install from source
+# Make sure your Dockerfile installs git, build-essential, python3-dev
 git+https://github.com/tencent-ailab/IP-Adapter.git
 
-Pin huggingface_hub to a compatible version for diffusers==0.27.2
+# Pin huggingface_hub to a compatible version for diffusers==0.27.2
 huggingface_hub==0.20.3
