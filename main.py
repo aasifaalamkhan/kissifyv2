@@ -1,4 +1,3 @@
-# main.py
 import runpod
 import torch
 import traceback
@@ -9,6 +8,7 @@ import requests
 import tempfile
 import numpy as np
 import gc # Import garbage collection
+import time # Import time module for sleep
 
 from threading import Thread
 from flask import Flask
@@ -18,7 +18,7 @@ from diffusers import AnimateDiffPipeline, MotionAdapter, DDIMScheduler, Control
 from diffusers.utils import export_to_video
 from transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 from controlnet_aux import OpenposeDetector, MidasDetector
-from huggingface_hub import login # For better token handling
+from huggingface_hub import hf_hub_download, HfFolder # For better token handling
 
 print("✅ main.py started: Initializing script execution.", flush=True)
 
@@ -37,45 +37,27 @@ class IPAdapterImageProj(torch.nn.Module):
     """
     def __init__(self, state_dict):
         super().__init__()
-        # Try to initialize with standard keys first
+        # Initialize a linear layer based on the shapes found in the state_dict
+        # Ensure dimensions match what the state_dict expects
         try:
-            input_dim = state_dict["image_proj.weight"].shape[1]
-            output_dim = state_dict["image_proj.weight"].shape[0]
+            input_dim = state_dict["image_proj.weight"].shape[1] # Corrected key based on typical linear layer state_dict
+            output_dim = state_dict["image_proj.weight"].shape[0] # Corrected key
             self.image_proj_model = torch.nn.Linear(input_dim, output_dim)
             self.image_proj_model.load_state_dict({
                 "weight": state_dict["image_proj.weight"],
-                "bias": state_dict["image_proj.bias"]
+                "bias": state_dict["image_proj.bias"] # Assuming bias is present
             })
             if RP_DEBUG:
-                print(f"DEBUG: IPAdapterImageProj initialized with standard keys. Input_dim={input_dim}, Output_dim={output_dim}", flush=True)
-        except KeyError as e:
-            # Fallback for alternative state_dict structure
-            print(f"WARNING: Standard IPAdapterImageProj keys not found ({e}). Attempting alternative parsing.", flush=True)
-            # Inspect keys to understand the structure if this fallback is consistently hit
-            if RP_DEBUG:
-                 print(f"DEBUG: Available keys in state_dict (for IPAdapterImageProj fallback): {state_dict.keys()}", flush=True)
-            
-            # This fallback assumes 'image_proj' might be a direct tensor or needs different access
-            # This logic assumes 'image_proj' directly contains the weight tensor and 'ip_adapter' helps infer output dim.
-            # This might need adjustment based on the exact structure of the ip-adapter_sd15.bin you're using.
-            try:
-                # If 'image_proj' is a tensor containing weights
-                if 'image_proj' in state_dict and isinstance(state_dict['image_proj'], torch.Tensor):
-                    input_dim_fallback = state_dict['image_proj'].shape[-1]
-                    output_dim_fallback = state_dict['ip_adapter'].shape[0] if 'ip_adapter' in state_dict else None
-                    if output_dim_fallback is None:
-                        raise ValueError("Cannot infer output dimension for IPAdapterImageProj fallback.")
-
-                    self.image_proj_model = torch.nn.Linear(input_dim_fallback, output_dim_fallback)
-                    self.image_proj_model.load_state_dict(
-                        {"weight": state_dict["image_proj"], "bias": torch.zeros(output_dim_fallback)}
-                    )
-                    if RP_DEBUG:
-                        print(f"DEBUG: IPAdapterImageProj initialized with fallback keys (direct tensor). Input_dim={input_dim_fallback}, Output_dim={output_dim_fallback}", flush=True)
-                else:
-                    raise KeyError("Neither standard nor known fallback keys found for IPAdapterImageProj.")
-            except Exception as e_fallback:
-                raise RuntimeError(f"Failed to initialize IPAdapterImageProj even with fallback: {e_fallback}\n{traceback.format_exc()}")
+                print(f"DEBUG: IPAdapterImageProj initialized with input_dim={input_dim}, output_dim={output_dim}", flush=True)
+        except KeyError:
+            # Fallback if the state_dict keys are different (e.g., from an older IP-Adapter version)
+            print("WARNING: 'image_proj.weight' or 'image_proj.bias' not found directly. Attempting alternative state_dict parsing.", flush=True)
+            self.image_proj_model = torch.nn.Linear(
+                state_dict["image_proj"].shape[-1], state_dict["ip_adapter"].shape[0]
+            )
+            self.image_proj_model.load_state_dict(
+                {"weight": state_dict["image_proj"], "bias": torch.zeros(state_dict["image_proj"].shape[0])}
+            )
         except Exception as e:
             raise RuntimeError(f"Failed to initialize IPAdapterImageProj: {e}\n{traceback.format_exc()}")
 
@@ -174,6 +156,11 @@ def generate_video(job: dict) -> dict:
     # Lazy-load models on the first job
     if pipe is None:
         print("⏳ Models not loaded. Beginning model loading process...", flush=True)
+        # Add a delay to ensure network is fully ready before model downloads
+        print("Waiting 5 seconds for network to stabilize...", flush=True)
+        time.sleep(5)
+        print("Resuming model loading...", flush=True)
+
         try:
             if not torch.cuda.is_available():
                 raise RuntimeError("CUDA is not available! A GPU is absolutely required for this application.")
@@ -181,14 +168,16 @@ def generate_video(job: dict) -> dict:
             print(f"Current CUDA device: {torch.cuda.current_device()}", flush=True)
             print(f"CUDA device name: {torch.cuda.get_device_name(0)}", flush=True)
 
-            # Retrieve Hugging Face token from environment variables
-            HUGGING_FACE_TOKEN = os.getenv("HUGGING_FACE_HUB_TOKEN")
+            # Retrieve Hugging Face token from environment variables or HfFolder
+            HUGGING_FACE_TOKEN = os.getenv("HUGGING_FACE_HUB_TOKEN") or HfFolder.get_token()
             if HUGGING_FACE_TOKEN:
-                print("🔐 Hugging Face token detected from environment variable.", flush=True)
+                print("🔐 Hugging Face token detected.", flush=True)
+                # Set token for session
+                from huggingface_hub import login
                 login(token=HUGGING_FACE_TOKEN, add_to_git_credential=False)
             else:
                 print("⚠️ Hugging Face token not found. Downloads for gated models may fail. "
-                      "Set HUGGING_FACE_HUB_TOKEN environment variable.", flush=True)
+                      "Set HUGGING_FACE_HUB_TOKEN environment variable or login using `huggingface_hub.login()`.", flush=True)
 
             # Define model IDs
             base_model_id = "SG161222/Realistic_Vision_V5.1_noVAE"
@@ -254,11 +243,8 @@ def generate_video(job: dict) -> dict:
             print(f"  Loading IP-Adapter weights from {ip_adapter_path}...", flush=True)
             ip_adapter_weights = torch.load(ip_adapter_path, map_location="cpu")
             # Filter the state_dict to only include keys starting with "image_proj" and "ip_adapter"
+            # This is a common practice when loading specific components
             filtered_weights = {k: v for k, v in ip_adapter_weights.items() if k.startswith(("image_proj", "ip_adapter"))}
-            
-            if RP_DEBUG:
-                print(f"DEBUG: Keys found in filtered_weights for IP-Adapter: {filtered_weights.keys()}", flush=True)
-
             image_proj_model = IPAdapterImageProj(filtered_weights).to("cuda") # Ensure projection model is on CUDA
             print("  IP-Adapter components loaded.", flush=True)
 
@@ -383,8 +369,12 @@ def generate_video(job: dict) -> dict:
         print(error_message, flush=True)
         return {"error": error_message}
 
-    # Clear memory after inference and before export, but keep 'frames'
+    # Clear memory after inference
     del output
+    # frames is a list of PIL Images, which can be large. Explicitly clear if possible.
+    # Note: `del frames` only removes the reference, GC will clean up later.
+    # If `frames` is a large list, consider processing it in chunks or directly writing to video.
+    # For now, relying on Python's GC and empty_cache.
     gc.collect()
     torch.cuda.empty_cache()
     if RP_DEBUG:
@@ -395,19 +385,12 @@ def generate_video(job: dict) -> dict:
     with tempfile.TemporaryDirectory() as tmpdir:
         video_path = os.path.join(tmpdir, "kissify_video.mp4")
         try:
-            export_to_video(frames, video_path, fps=fps) # 'frames' is used here
+            export_to_video(frames, video_path, fps=fps)
             print(f"📼 Video exported to {video_path} with {fps} FPS.", flush=True)
         except Exception as e:
             error_message = f"❌ Failed to export video: {traceback.format_exc()}"
             print(error_message, flush=True)
             return {"error": error_message}
-
-        # Now it's safe to delete frames as they are no longer needed
-        del frames
-        gc.collect()
-        torch.cuda.empty_cache()
-        if RP_DEBUG:
-            print(f"DEBUG: CUDA memory after video export and frames deletion: {torch.cuda.memory_allocated() / (1024**3):.2f} GB", flush=True)
 
         print("🚀 Uploading generated video to Catbox...", flush=True)
         video_url = upload_to_catbox(filepath=video_path)
@@ -428,13 +411,16 @@ if __name__ == "__main__":
         print("Health check server thread started.", flush=True)
     except Exception as e:
         print(f"❌ Failed to start health check server thread: {traceback.format_exc()}", flush=True)
+        # If health check fails to start, the worker will likely be marked unhealthy quickly.
         exit(1) # Exit immediately if essential service cannot start
 
     try:
         print("🚀 RunPod worker is ready to receive jobs...", flush=True)
         runpod.serverless.start({"handler": generate_video})
     except Exception as e:
-        print(f"❌ RunPod serverless failed to start: {traceback.ToJson()['exc']}", flush=True)
+        print(f"❌ RunPod serverless failed to start: {traceback.format_exc()}", flush=True)
+        # It's good practice to let the container exit if the main service fails to initialize.
+        # An uncaught exception here will cause the container to exit with a non-zero code.
         exit(1) # Ensure the container exits with an error code
 
     # --- Local Test Mode (Optional) ---
