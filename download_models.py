@@ -1,6 +1,7 @@
 import os
 import sys
-from huggingface_hub import snapshot_download, login, HfHubDownloadError
+from huggingface_hub import snapshot_download, login
+import requests  # To handle errors in a generic way
 
 # --- Configuration ---
 HF_HOME_DIR = os.getenv('HF_HOME', '/app/hf_cache')  # Ensure this matches Dockerfile and main.py
@@ -24,7 +25,7 @@ def download_huggingface_models():
         try:
             login(token=token, add_to_git_credential=False)
             print('Successfully logged in to Hugging Face Hub.', flush=True)
-        except HfHubDownloadError as e:
+        except requests.exceptions.RequestException as e:  # Catch network and HTTP errors
             print(f'ERROR: Failed to log in to Hugging Face Hub: {e}', flush=True)
             sys.exit(1)  # Exit to fail the build if login fails
     else:
@@ -45,8 +46,8 @@ def download_huggingface_models():
                 token=token  # Pass token explicitly here too
             )
             print(f'Successfully pre-fetched {repo_id}.', flush=True)
-        except HfHubDownloadError as e:
-            print(f'ERROR: Failed to download {repo_id}. This might be due to a missing/invalid token or network issue: {e}', flush=True)
+        except requests.exceptions.RequestException as e:  # Catch download errors
+            print(f'ERROR: Failed to download {repo_id}. This might be due to network issues: {e}', flush=True)
             all_downloads_successful = False
         except Exception as e:
             print(f'ERROR: An unexpected error occurred while downloading {repo_id}: {e}', flush=True)
