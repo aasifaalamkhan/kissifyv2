@@ -18,10 +18,11 @@ COPY . /app
 
 # Install Python dependencies
 RUN pip install --upgrade pip \
- && pip install -r requirements.txt
+ && pip install -r requirements.txt \
+ && pip install --upgrade huggingface_hub  # Ensure latest version of huggingface_hub
 
 # Preload models (optional but helpful to reduce cold start time)
-RUN python3 download_models.py || true
+RUN python3 download_models.py || echo "Model download failed, but continuing the build"
 
 # RunPod serverless expects this exact entrypoint
 CMD ["python3", "handler.py"]
