@@ -1,5 +1,6 @@
 # Use the official PyTorch image with CUDA 11.8 and Python 3.10
-FROM pytorch/pytorch:2.2.0-cuda11.8-cudnn8-devel
+-FROM pytorch/pytorch:2.2.0-cuda11.8-cudnn8-devel
++FROM pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -30,6 +31,7 @@ RUN echo "--- Updating apt packages and installing system dependencies ---" && \
 # --upgrade pip ensures pip is up-to-date, setuptools and wheel are also good to update.
 COPY requirements.txt .
 RUN echo "--- Installing Python packages from requirements.txt ---" && \
+    # Ensure pip, setuptools, and wheel are updated first to avoid legacy resolver issues
     pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt \
     --extra-index-url https://download.pytorch.org/whl/cu118 && \
@@ -37,6 +39,13 @@ RUN echo "--- Installing Python packages from requirements.txt ---" && \
 
 # --- OPTIONAL: Pre-fetch Hugging Face models during build ---
 # (Keep this section commented out unless you actively need it and configure the token)
+# For production deployment, strongly consider uncommenting this and
+# configuring your RunPod build to pass a Hugging Face token as a build secret.
+# This will significantly reduce cold start times.
+# Example for RunPod `runpod.yaml` (simplified):
+# build_args:
+#   - name: HUGGING_FACE_HUB_TOKEN
+#     value: runpod_secret:YOUR_HF_TOKEN_SECRET_NAME
 # RUN --mount=type=secret,id=huggingface_token,target=/run/secrets/huggingface_token \
 #     export HF_HOME="/app/hf_cache" && \
 #     mkdir -p ${HF_HOME} && \

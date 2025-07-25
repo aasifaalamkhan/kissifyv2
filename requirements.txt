@@ -1,10 +1,11 @@
+# requirements.txt
 # RunPod SDK
 runpod==1.7.13
 
-# PyTorch stack (2.2.0 stable)
-torch==2.2.0
-torchvision==0.17.0
-torchaudio==2.2.0
+# PyTorch stack (2.2.2 stable)
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
 
 # Core Diffusion stack (latest AnimateDiff, MotionAdapter, IP-Adapter support)
 diffusers @ git+https://github.com/huggingface/diffusers.git
@@ -27,9 +28,7 @@ controlnet-aux==0.0.6
 flask==3.0.3
 
 # Memory/perf
-xformers==0.0.25.post1 # FIXED: Using the recommended version for torch==2.2.0
+xformers==0.0.25.post1
 
 # IP-Adapter (from source, as it requires specific build setup)
 git+https://github.com/tencent-ailab/IP-Adapter.git
-
-
