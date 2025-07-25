@@ -1,0 +1,46 @@
+# RunPod SDK stable pinned
+runpod==1.7.13
+
+# PyTorch (compatible with xformers)
+# The base image is pytorch/pytorch:2.2.0-cuda11.8-cudnn8-devel
+# So, these versions are compatible with the base image's torch version.
+torch==2.2.2
+torchvision==0.17.2
+torchaudio==2.2.2
+
+# Core Stable Diffusion / AnimateDiff dependencies
+diffusers==0.27.2
+transformers==4.38.2
+accelerate==0.27.2
+safetensors==0.4.2
+
+# Utility & image processing
+Pillow==10.2.0
+opencv-python-headless==4.9.0.80
+requests==2.31.0
+numpy==1.26.4
+
+# controlnet_aux dependencies:
+# matplotlib is a dependency for some controlnet_aux processors, good to include.
+matplotlib==3.8.3
+# controlnet-aux itself
+controlnet-aux==0.0.6
+
+# For the health check server
+flask==3.0.3
+
+# Memory and performance optimization (requires torch 2.2.2)
+xformers==0.0.25.post1
+
+# IP-Adapter (Tencent official) — install from source
+# Make sure your Dockerfile installs git, build-essential, python3-dev
+git+https://github.com/tencent-ailab/IP-Adapter.git@main#egg=ip_adapter
+
+# Pin huggingface_hub to a compatible version for diffusers==0.27.2 and transformers==4.38.2
+# It's good to pin this explicitly.
+huggingface_hub>=0.23.0
+
+# Added: protobuf is a common dependency that can cause issues if not pinned
+# or if too new/old for other libraries.
+# Pinning a widely compatible version is good.
+protobuf==3.20.3
