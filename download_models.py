@@ -16,6 +16,27 @@ MODELS_TO_DOWNLOAD = [
     ('lllyasviel/ControlNet', None),  # No specific patterns needed, download all
 ]
 
+def is_model_cached(repo_id, patterns):
+    """
+    Check if the model files for the given repo_id are already cached in HF_HOME_DIR.
+    """
+    model_dir = os.path.join(HF_HOME_DIR, repo_id.replace("/", "_"))  # HuggingFace caches by repo_id, replace "/" with "_"
+    
+    if not os.path.exists(model_dir):
+        return False  # Directory doesn't exist, model is not cached
+
+    if patterns:  # If specific patterns were provided, check if the required files exist
+        for pattern in patterns:
+            matching_files = [f for f in os.listdir(model_dir) if f.endswith(pattern)]
+            if not matching_files:
+                return False  # No matching files found for the pattern
+    else:
+        # If no patterns, just check if there are any files in the directory
+        if not os.listdir(model_dir):
+            return False  # Directory is empty, no model files found
+
+    return True  # The model is cached
+
 def download_huggingface_models():
     token = os.getenv('HUGGING_FACE_HUB_TOKEN')
     
@@ -36,6 +57,11 @@ def download_huggingface_models():
 
     all_downloads_successful = True
     for repo_id, patterns in MODELS_TO_DOWNLOAD:
+        # Check if the model is already cached
+        if is_model_cached(repo_id, patterns):
+            print(f'Model {repo_id} is already cached. Skipping download.', flush=True)
+            continue  # Skip downloading if model is already cached
+
         print(f'Pre-fetching {repo_id} to {HF_HOME_DIR}...', flush=True)
         try:
             snapshot_download(
