@@ -46,7 +46,7 @@ model_load_lock = Lock()
 # Set Hugging Face cache directory (important: must match Dockerfile's HF_HOME)
 # This ENV VAR will be set by the Dockerfile, so this just confirms it.
 HF_CACHE_DIR = os.getenv('HF_HOME', '/app/hf_cache')
-os.environ['HF_HOME'] = HF_CACHE_DIR # Re-confirm for good measure
+os.environ['HF_HOME'] = HF_CACHE_DIR  # Re-confirm for good measure
 print(f"Hugging Face cache directory set to: {os.environ['HF_HOME']}", flush=True)
 
 
@@ -63,8 +63,8 @@ def upload_to_catbox(filepath: str, max_retries: int = 5, initial_delay: int = 5
             with open(filepath, 'rb') as f:
                 files = {'fileToUpload': (os.path.basename(filepath), f)}
                 data = {'reqtype': 'fileupload', 'userhash': ''}
-                response = requests.post('https://litterbox.catbox.moe/resources/internals/api.php', files=files, data=data, timeout=90) # Increased timeout
-                response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+                response = requests.post('https://litterbox.catbox.moe/resources/internals/api.php', files=files, data=data, timeout=90)  # Increased timeout
+                response.raise_for_status()  # Raise HTTPError for bad responses (4xx or 5xx)
 
                 if response.text.startswith("https://") and len(response.text.strip()) > len("https://"):
                     print(f"✅ Upload successful. URL: {response.text}", flush=True)
@@ -81,13 +81,14 @@ def upload_to_catbox(filepath: str, max_retries: int = 5, initial_delay: int = 5
 
         retries += 1
         if retries < max_retries:
-            sleep_time = initial_delay * (2 ** retries) # Exponential backoff
+            sleep_time = initial_delay * (2 ** retries)  # Exponential backoff
             print(f"Waiting {sleep_time} seconds before retrying...", flush=True)
             time.sleep(sleep_time)
             
     final_error_message = f"ERROR: Failed to upload {os.path.basename(filepath)} to Catbox after {max_retries} attempts."
     print(final_error_message, flush=True)
     return {"error": final_error_message}
+
 
 # --- Health Check Server ---
 def run_healthcheck_server():
@@ -113,7 +114,8 @@ def run_healthcheck_server():
     except Exception as e:
         print(f"❌ CRITICAL ERROR: Health check server failed to start: {traceback.format_exc()}", flush=True)
         # In a real scenario, you might want to terminate the container here.
-        os._exit(1) # Force exit if health check fails, RunPod will restart.
+        os._exit(1)  # Force exit if health check fails, RunPod will restart.
+
 
 # --- Job Handler: Main Video Generation Logic ---
 def generate_video(job: dict) -> dict:
@@ -181,19 +183,19 @@ def generate_video(job: dict) -> dict:
                 print("  AnimateDiff pipeline loaded. Setting scheduler...", flush=True)
                 pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
                 print("  Scheduler set.", flush=True)
-                
+
                 # --- IP-Adapter integration ---
                 print(f"  Loading CLIP Image Encoder from {clip_model_id} (from cache)...", flush=True)
                 image_encoder = CLIPVisionModelWithProjection.from_pretrained(
-                    clip_model_id, torch_dtype=torch.float32 # Load initially as float32 for potential precision needs
+                    clip_model_id, torch_dtype=torch.float32  # Load initially as float32 for potential precision needs
                 )
-                
+
                 print(f"  Loading IP-Adapter weights: {ip_adapter_repo_id} (subfolder: {ip_adapter_model_subfolder}, filename: {ip_adapter_weight_filename}) (from cache)...", flush=True)
                 pipe.load_ip_adapter(
                     ip_adapter_repo_id,
                     subfolder=ip_adapter_model_subfolder,
                     weight_name=ip_adapter_weight_filename,
-                    image_encoder=image_encoder # Pass the pre-loaded image_encoder
+                    image_encoder=image_encoder  # Pass the pre-loaded image_encoder
                 )
 
                 # Move entire pipeline to GPU and float16
@@ -208,7 +210,7 @@ def generate_video(job: dict) -> dict:
                             if image_encoder.device.type == 'cpu':
                                 image_encoder.to("cuda", dtype=torch.float32)
                             else:
-                                image_encoder.to(dtype=torch.float32) # Already on GPU, just ensure dtype
+                                image_encoder.to(dtype=torch.float32)  # Already on GPU, just ensure dtype
                             print("✅ image_encoder (CLIP) moved to GPU and float32 for compatibility.", flush=True)
                     except Exception as e:
                         print(f"⚠️ Failed to move image_encoder to GPU/float32: {e}. This might cause issues.", flush=True)
@@ -223,7 +225,7 @@ def generate_video(job: dict) -> dict:
                         print(f"DEBUG: Pipeline UNet device: {pipe.unet.device}, VAE device: {pipe.vae.device}, Text Encoder device: {pipe.text_encoder.device}", flush=True)
                         print(f"DEBUG: Pipeline UNet dtype: {pipe.unet.dtype}, VAE dtype: {pipe.vae.dtype}, Text Encoder dtype: {pipe.text_encoder.dtype}", flush=True)
                         if hasattr(pipe, 'ip_adapter') and pipe.ip_adapter is not None and \
-                           hasattr(pipe.ip_adapter, 'ip_adapter_modules') and len(pipe.ip_adapter.ip_adapter_modules) > 0:
+                                hasattr(pipe.ip_adapter, 'ip_adapter_modules') and len(pipe.ip_adapter.ip_adapter_modules) > 0:
                             print(f"DEBUG: IP-Adapter module (first) dtype: {pipe.ip_adapter.ip_adapter_modules[0].dtype}", flush=True)
                         print(f"DEBUG: Entire pipeline moved to GPU and (mostly) float16.", flush=True)
                 else:
@@ -235,9 +237,9 @@ def generate_video(job: dict) -> dict:
                 gc.collect()
                 torch.cuda.empty_cache()
                 if RP_DEBUG and torch.cuda.is_available():
-                    print(f"DEBUG: CUDA memory after initial load and cleanup: {torch.cuda.memory_allocated() / (1024**3):.2f} GB", flush=True)
+                    print(f"DEBUG: CUDA memory after initial load and cleanup: {torch.cuda.memory_allocated() / (1024 ** 3):.2f} GB", flush=True)
                     hf_cache_size_bytes = sum(os.path.getsize(os.path.join(dirpath, filename)) for dirpath, dirnames, filenames in os.walk(HF_CACHE_DIR) for filename in filenames)
-                    print(f"DEBUG: Hugging Face cache size on disk: {hf_cache_size_bytes / (1024**3):.2f} GB", flush=True)
+                    print(f"DEBUG: Hugging Face cache size on disk: {hf_cache_size_bytes / (1024 ** 3):.2f} GB", flush=True)
 
 
             except RuntimeError as e:
@@ -249,14 +251,14 @@ def generate_video(job: dict) -> dict:
                 print(error_message, flush=True)
                 return {"error": error_message}
 
-    job_input = job.get('input') # Use .get() for safer access
+    job_input = job.get('input')  # Use .get() for safer access
     if not isinstance(job_input, dict):
         print(f"❌ Invalid job input structure. Expected a dictionary, got {type(job_input)}.", flush=True)
         return {"error": "Invalid job input structure. Expected a dictionary."}
 
     base64_image = job_input.get('init_image')
     prompt = job_input.get('prompt', 'a couple kissing, beautiful, cinematic')
-    
+
     # Negative prompt can also be configured by user
     negative_prompt = job_input.get('negative_prompt', 'ugly, distorted, low quality, cropped, blurry, bad anatomy, bad quality, long_neck, long_body, text, watermark, signature')
 
@@ -296,10 +298,10 @@ def generate_video(job: dict) -> dict:
         image_bytes = base64.b64decode(base64_image)
         init_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         print(f"🖼️ Input image dimensions: {init_image.size[0]}x{init_image.size[1]}", flush=True)
-        
+
         # Add input image size validation
         if init_image.size[0] * init_image.size[1] > 1024 * 1024:
-            return {"error": "Input image too large. Max 1 Megapixel (e.g., 1024x1024) supported. Received image: {init_image.size[0]}x{init_image.size[1]} ({init_image.size[0] * init_image.size[1]} pixels)."}
+            return {"error": f"Input image too large. Max 1 Megapixel (e.g., 1024x1024) supported. Received image: {init_image.size[0]}x{init_image.size[1]} ({init_image.size[0] * init_image.size[1]} pixels)."}
 
     except Exception as e:
         error_message = f"❌ Failed to decode or open 'init_image'. Ensure it's a valid base64 encoded image: {traceback.format_exc()}"
@@ -337,13 +339,13 @@ def generate_video(job: dict) -> dict:
 
         if RP_DEBUG:
             print(f"DEBUG: Depth image generated. Type: {type(depth_image)}, Size: {depth_image.size[0]}x{depth_image.size[1]}", flush=True)
-            
+
         control_images = [openpose_image, depth_image]
 
         pipe.set_ip_adapter_scale(ip_adapter_scale)
         # No need for cross_attention_kwargs unless you have specific needs beyond ip_adapter_image
         # cross_attention_kwargs = {}
-        
+
         print("🔍 Image preprocessing complete.", flush=True)
 
     except Exception as e:
@@ -360,7 +362,7 @@ def generate_video(job: dict) -> dict:
         with torch.cuda.amp.autocast(dtype=torch.float16):
             output = pipe(
                 prompt=prompt,
-                negative_prompt=negative_prompt, # Use the potentially user-defined negative prompt
+                negative_prompt=negative_prompt,  # Use the potentially user-defined negative prompt
                 num_frames=num_frames,
                 guidance_scale=7.5,
                 num_inference_steps=20,
@@ -371,11 +373,11 @@ def generate_video(job: dict) -> dict:
                 height=height,
                 width=width
             )
-        
+
         if not output.frames or len(output.frames) == 0:
             print("❌ No frames were generated by the pipeline. Inference may have failed silently or produced no output.", flush=True)
             return {"error": "No frames were generated by the pipeline. Inference may have failed silently."}
-        
+
         generated_frames = output.frames[0]
         print("✅ Video inference completed.", flush=True)
 
@@ -410,7 +412,7 @@ def generate_video(job: dict) -> dict:
                 print(f"🖼️ Thumbnail exported to {thumbnail_path}.", flush=True)
             else:
                 print("⚠️ No frames to generate thumbnail from. Thumbnail will be omitted.", flush=True)
-                thumbnail_path = None # Ensure thumbnail_path is None if no frames
+                thumbnail_path = None  # Ensure thumbnail_path is None if no frames
 
         except Exception as e:
             error_message = f"❌ Failed to export video or thumbnail: {traceback.format_exc()}"
@@ -459,7 +461,7 @@ def generate_video(job: dict) -> dict:
 
         # Retrieve results
         video_upload_output = video_result_list[0] if video_result_list else {"error": "Video upload thread did not return a result."}
-        thumbnail_upload_output = thumbnail_result_list[0] if thumbnail_result_list else {"url": None} # Assume no thumbnail if thread didn't run or return
+        thumbnail_upload_output = thumbnail_result_list[0] if thumbnail_result_list else {"url": None}  # Assume no thumbnail if thread didn't run or return
 
         video_url = None
         thumbnail_url = None
@@ -475,7 +477,6 @@ def generate_video(job: dict) -> dict:
             # Do not return error, as video might still be successful
         else:
             thumbnail_url = thumbnail_upload_output.get("url") if thumbnail_upload_output else None
-
 
         print(f"✅ Video generation complete and uploaded. Video URL: {video_url}", flush=True)
         return {"output": {"video_url": video_url, "thumbnail_url": thumbnail_url}}
